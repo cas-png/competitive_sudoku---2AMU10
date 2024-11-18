@@ -38,7 +38,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 if game_state.board.get((i, k)) == value or game_state.board.get((k, j)) == value:
                     return False
 
-            # Check the 3x3 subgrid (assuming standard 9x9 Sudoku)
             i_left_top = i - (i % n)
             j_left_top = j - (j % m)
             for k in range(n):
