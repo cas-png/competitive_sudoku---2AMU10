@@ -15,6 +15,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     # Improved implementation that ensures only legal moves are made.
     def compute_best_move(self, game_state: GameState) -> None:
         N = game_state.board.N
+        n = game_state.board.n      # Number of rows
+        m = game_state.board.m      # Number of columns
 
         # Check if a move is valid according to Sudoku rules
         def is_valid_move(i, j, value):
@@ -37,14 +39,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     return False
 
             # Check the 3x3 subgrid (assuming standard 9x9 Sudoku)
-            subgrid_size = int(N**0.5)
-            start_row = (i // subgrid_size) * subgrid_size
-            start_col = (j // subgrid_size) * subgrid_size
-
-            for x in range(start_row, start_row + subgrid_size):
-                for y in range(start_col, start_col + subgrid_size):
-                    if game_state.board.get((x, y)) == value:
+            i_left_top = i - (i % n)
+            j_left_top = j - (j % m)
+            for k in range(n):
+                for l in range(m):
+                    if game_state.board.get((i_left_top + k, j_left_top + l)) == value:
                         return False
+
 
             return True
 
