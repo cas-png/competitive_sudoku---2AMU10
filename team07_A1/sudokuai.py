@@ -160,20 +160,18 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             best_move = None
 
             for move in possible_moves:
-                # copy game state in order to put new value, change player,
-                # add square to occupied squares and recurse with a new game state
-                new_state = copy.deepcopy(game_state)
+                # put new value, change player, add square to occupied squares
+                game_state.board.put(move.square, move.value)
+                game_state.occupied_squares1.append(move.square)
+                game_state.current_player = 2
 
-                # change board, current player, occupied squares
-                new_state.board.put(move.square, move.value)
-                new_state.occupied_squares1.append(move.square)
-                new_state.current_player = 2
+                # recurse with a new game state
+                next_value, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
 
-                # extract minimax value for the `move`
-                next_value, _ = SudokuAI.minimax(game_state=new_state,
-                                                 alpha=alpha,
-                                                 beta=beta,
-                                                 depth=depth-1)
+                # undo the move in the game (avoiding copying game state)
+                game_state.board.put(move.square, game_state.board.empty)
+                game_state.occupied_squares1.pop()
+                game_state.current_player = 1
 
                 # update best value and best move if needed
                 if next_value > value:
@@ -191,20 +189,18 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             best_move = None
 
             for move in possible_moves:
-                # copy game state in order to put new value, change player,
-                # add square to occupied squares and recurse with a new game state
-                new_state = copy.deepcopy(game_state)
+                # put new value, change player, add square to occupied squares
+                game_state.board.put(move.square, move.value)
+                game_state.occupied_squares2.append(move.square)
+                game_state.current_player = 1
 
-                # change board, current player, occupied squares
-                new_state.board.put(move.square, move.value)
-                new_state.occupied_squares2.append(move.square)
-                new_state.current_player = 1
+                # recurse with a new game state
+                next_value, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
 
-                # extract minimax value for the `move`
-                next_value, _ = SudokuAI.minimax(game_state=new_state,
-                                                 alpha=alpha,
-                                                 beta=beta,
-                                                 depth=depth - 1)
+                # undo the move in the game (avoiding copying game state)
+                game_state.board.put(move.square, game_state.board.empty)
+                game_state.occupied_squares2.pop()
+                game_state.current_player = 2
 
                 # update best value and best move if needed
                 if next_value < value:
