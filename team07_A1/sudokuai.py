@@ -15,8 +15,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         super().__init__()
 
     @staticmethod
-    def possible(game_state, i, j, value):
-        """check if move is possible in the current state of the game"""
+    def possible(game_state: GameState, i: int, j: int, value: int) -> bool:
+        """Check if it is possible to place `value` on position (`i`, `j`) in the current game state"""
 
         # check if taboo move
         if TabooMove((i, j), value) in game_state.taboo_moves:
@@ -51,12 +51,11 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         return True
 
     @staticmethod
-    def evaluate_game(game_state: GameState):
+    def evaluate_game(game_state: GameState) -> int:
         """
-        calculate score for the game (player_1_score - player_2_score)
-        player score is the number of row/columns/blocks closed
+        Compute the score of the game (basically `player_1_score` - `player_2_score`)
+        player_X_score is defined by the number of rows/columns/blocks closed
         """
-
         # check rows
         closed_rows_1 = 0
         closed_rows_2 = 0
@@ -126,19 +125,23 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         return player_1_score - player_2_score
 
     @staticmethod
-    def minimax(game_state, depth):
+    def minimax(game_state: GameState, alpha: int = -100, beta: int = 100, depth: int = 3):
         """
-        minimax tree search algorithm up to a given depth
+        Minimax tree search for the current game state up to a given `depth`.
+        This method also implements alpha/beta pruning for the search optimization.
         """
+        # terminate recursion if reached max depth
         if depth == 0:
             return SudokuAI.evaluate_game(game_state), None
 
         # extract possible moves
         player_squares = game_state.player_squares()
 
+        # If all moves are available - enumerate them
         if player_squares is None:
             player_squares = [(i, j) for i in range(game_state.board.N) for j in range(game_state.board.N)]
 
+        # Apply additional filtering of possible moves (e.g. check possible values, taboo, cell emptiness)
         possible_moves = [
             Move((i, j), value)
             for i, j in player_squares
@@ -146,18 +149,19 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             if SudokuAI.possible(game_state, i, j, value)
         ]
 
-
+        # terminate recursion if there are no possible moves
         if len(possible_moves) == 0:
-            # terminate recursion if there are no possible moves
             return SudokuAI.evaluate_game(game_state), None
 
-
+        # recursive step
         if game_state.current_player == 1:
             # maximizing case
             value = float("-inf")
             best_move = None
 
             for move in possible_moves:
+                # copy game state in order to put new value, change player,
+                # add square to occupied squares and recurse with a new game state
                 new_state = copy.deepcopy(game_state)
 
                 # change board, current player, occupied squares
@@ -165,12 +169,21 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 new_state.occupied_squares1.append(move.square)
                 new_state.current_player = 2
 
-                next_value, _ = SudokuAI.minimax(new_state, depth - 1)
+                # extract minimax value for the `move`
+                next_value, _ = SudokuAI.minimax(game_state=new_state,
+                                                 alpha=alpha,
+                                                 beta=beta,
+                                                 depth=depth-1)
+
+                # update best value and best move if needed
                 if next_value > value:
                     value = next_value
                     best_move = move
 
-            return value, best_move
+                # alpha/beta pruning logic
+                if value >= beta:
+                    break
+                alpha = max(alpha, value)
 
         elif game_state.current_player == 2:
             # minimizing case
@@ -178,6 +191,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             best_move = None
 
             for move in possible_moves:
+                # copy game state in order to put new value, change player,
+                # add square to occupied squares and recurse with a new game state
                 new_state = copy.deepcopy(game_state)
 
                 # change board, current player, occupied squares
@@ -185,20 +200,31 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 new_state.occupied_squares2.append(move.square)
                 new_state.current_player = 1
 
-                next_value, _ = SudokuAI.minimax(new_state, depth - 1)
+                # extract minimax value for the `move`
+                next_value, _ = SudokuAI.minimax(game_state=new_state,
+                                                 alpha=alpha,
+                                                 beta=beta,
+                                                 depth=depth - 1)
+
+                # update best value and best move if needed
                 if next_value < value:
                     value = next_value
                     best_move = move
 
-            return value, best_move
+                # alpha/beta pruning logic
+                if value <= alpha:
+                    break
+                beta = min(beta, value)
+
+        return value, best_move
 
     @staticmethod
     def select_move(game_state: GameState) -> Move:
-        """Select MINIMAX move if found and RANDOM otherwise"""
+        """Select move recommended by Minimax if possible and random move otherwise"""
         val, move = SudokuAI.minimax(game_state, depth=3)
 
         if move is not None:
-            # minimax found move
+            # minimax found next best move
             print("*" * 100)
             print(f"Selected MINIMAX move with score {val} | square = {move.square}; value = {move.value};")
             print("*" * 100)
@@ -222,7 +248,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         return move
 
     def compute_best_move(self, game_state: GameState) -> None:
-
         self.propose_move(self.select_move(game_state))
 
         while True:
