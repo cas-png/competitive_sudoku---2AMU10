@@ -49,80 +49,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     return False
 
         return True
-
+    
     @staticmethod
     def evaluate_game(game_state: GameState) -> int:
         """
         Compute the score of the game (basically `player_1_score` - `player_2_score`)
-        player_X_score is defined by the number of rows/columns/blocks closed
         """
-        # check rows
-        closed_rows_1 = 0
-        closed_rows_2 = 0
-        for i in range(game_state.board.N):
-            cnt_1 = 0
-            cnt_2 = 0
-
-            for j in range(game_state.board.N):
-                if (i, j) in game_state.occupied_squares1:
-                    cnt_1 += 1
-                elif (i, j) in game_state.occupied_squares2:
-                    cnt_2 += 1
-
-            if cnt_1 == game_state.board.N:
-                closed_rows_1 += 1
-            elif cnt_2 == game_state.board.N:
-                closed_rows_2 += 1
-
-        # check cols
-        closed_cols_1 = 0
-        closed_cols_2 = 0
-        for i in range(game_state.board.N):
-            cnt_1 = 0
-            cnt_2 = 0
-            for j in range(game_state.board.N):
-                if (j, i) in game_state.occupied_squares1:
-                    cnt_1 += 1
-                elif (j, i) in game_state.occupied_squares2:
-                    cnt_2 += 1
-
-            if cnt_1 == game_state.board.N:
-                closed_cols_1 += 1
-            elif cnt_2 == game_state.board.N:
-                closed_cols_2 += 1
-
-        # check blocks
-        closed_blocks_1 = 0
-        closed_blocks_2 = 0
-        for b_i in range(game_state.board.N // game_state.board.m):
-            for b_j in range(game_state.board.N // game_state.board.n):
-
-                cnt_1 = 0
-                cnt_2 = 0
-
-                for i in range(game_state.board.m):
-                    for j in range(game_state.board.n):
-
-                        if (
-                            b_i * game_state.board.m + i,
-                            b_j * game_state.board.n + j,
-                        ) in game_state.occupied_squares1:
-                            cnt_1 += 1
-                        elif (
-                            b_i * game_state.board.m + i,
-                            b_j * game_state.board.n + j,
-                        ) in game_state.occupied_squares2:
-                            cnt_2 += 1
-
-                if cnt_1 == game_state.board.N:
-                    closed_blocks_1 += 1
-                if cnt_2 == game_state.board.N:
-                    closed_blocks_2 += 1
-
-        player_1_score = closed_rows_1 + closed_cols_1 + closed_blocks_1
-        player_2_score = closed_rows_2 + closed_cols_2 + closed_blocks_2
-
-        return player_1_score - player_2_score
+        return game_state.scores[0] - game_state.scores[1]
 
     @staticmethod
     def minimax(game_state: GameState, alpha: int = -100, beta: int = 100, depth: int = 3):
@@ -245,7 +178,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     def compute_best_move(self, game_state: GameState) -> None:
         self.propose_move(self.select_move(game_state))
-
+    
         while True:
             time.sleep(0.2)
             self.propose_move(self.select_move(game_state))
