@@ -157,6 +157,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 if next_value_minimax > value_minimax:
                     value_minimax = next_value_minimax
                     best_move = move
+                    best_moves = []
+                    best_moves.append(best_move)
+
+                if next_value_minimax == value_minimax:
+                    best_moves.append(move)
+                    best_move = random.choice(best_moves)
 
                 # alpha/beta pruning logic
                 if value_minimax >= beta:
@@ -189,6 +195,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 if next_value_minimax < value_minimax:
                     value_minimax = next_value_minimax
                     best_move = move
+                    best_moves = []
+                    best_moves.append(best_move)
+
+                if next_value_minimax == value_minimax:
+                    best_moves.append(move)
+                    best_move = random.choice(best_moves)
 
                 # alpha/beta pruning logic
                 if value_minimax <= alpha:
