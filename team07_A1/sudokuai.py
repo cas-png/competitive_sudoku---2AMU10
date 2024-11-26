@@ -74,11 +74,11 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         if full_row:
             reg_completed += 1
 
-        # Check the move completes a rectangle
+        # check block
         full_rectangle = True
-        # Get coordinates for the left upper corner in the n by m rectangle where (i,j ) is located
         i_left_top = move.square[0] - (move.square[0] % game_state.board.n)
         j_left_top = move.square[1] - (move.square[1] % game_state.board.m)
+
         for k in range(game_state.board.n):
             for l in range(game_state.board.m):
                 if game_state.board.get((i_left_top + k, j_left_top + l)) == SudokuBoard.empty:
@@ -87,7 +87,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             reg_completed += 1
 
         scores = [0, 1, 3, 7]
-
         return scores[reg_completed]
 
     @staticmethod
@@ -191,38 +190,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         return value, best_move
 
-    @staticmethod
-    def select_move(game_state: GameState) -> Move:
-        """Select move recommended by Minimax if possible and random move otherwise"""
-        val, move = SudokuAI.minimax(game_state, depth=7)
-
-        if move is not None:
-            # minimax found next best move
+    def compute_best_move(self, game_state: GameState) -> None:
+        for depth in range(4, 100):
+            val, move = self.minimax(game_state, depth=depth)
             print("*" * 100)
             print(f"Selected MINIMAX move with score {val} | square = {move.square}; value = {move.value};")
             print("*" * 100)
-            return move
-
-        # if minimax couldn't find a move, just take random
-        player_squares = game_state.player_squares()
-        if player_squares is None:
-            player_squares = [(i, j) for i in range(game_state.board.N) for j in range(game_state.board.N)]
-
-        possible_moves = list()
-        for i, j in player_squares:
-            val = SudokuAI.get_possible_value(game_state, i, j)
-            if val is not None:
-                possible_moves.append(Move(square=(i, j), value=val))
-
-        move = random.choice(possible_moves)
-        print("*" * 100)
-        print(f"Selected RANDOM move | square = {move.square}; value = {move.value};")
-        print("*" * 100)
-        return move
-
-    def compute_best_move(self, game_state: GameState) -> None:
-        self.propose_move(self.select_move(game_state))
-
-        while True:
-            time.sleep(0.2)
-            self.propose_move(self.select_move(game_state))
+            self.propose_move(move)
