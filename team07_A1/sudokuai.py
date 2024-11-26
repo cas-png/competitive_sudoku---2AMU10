@@ -138,9 +138,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             for move in possible_moves:
                 # put new value, change player, add square to occupied squares
+                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.board.put(move.square, move.value)
                 game_state.occupied_squares1.append(move.square)
-                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.scores[game_state.current_player - 1] += move_score
                 game_state.current_player = 2
 
@@ -170,9 +170,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
             for move in possible_moves:
                 # put new value, change player, add square to occupied squares
+                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.board.put(move.square, move.value)
                 game_state.occupied_squares2.append(move.square)
-                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.scores[game_state.current_player - 1] += move_score
                 game_state.current_player = 1
 
