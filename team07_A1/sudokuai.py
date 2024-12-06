@@ -1,9 +1,9 @@
+import copy
 import random
 import time
-from typing import Optional
 
 import competitive_sudoku.sudokuai
-from competitive_sudoku.sudoku import GameState, Move, SudokuBoard
+from competitive_sudoku.sudoku import GameState, Move, SudokuBoard, TabooMove
 
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
@@ -15,82 +15,94 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         super().__init__()
 
     @staticmethod
-    def get_possible_value(game_state: GameState, i: int, j: int) -> Optional[int]:
-        """Returns possible value for the position (i, j) of the game and None if it does not exist."""
-        taboo_moves = {v.value for v in game_state.taboo_moves if v.square == (i, j)}
+    def possible(game_state: GameState, i: int, j: int, value: int) -> bool:
+        """Check if it is possible to place `value` on position (`i`, `j`) in the current game state"""
 
-        vertical = set()
+        # check if taboo move
+        if TabooMove((i, j), value) in game_state.taboo_moves:
+            return False
+
+        # check if cell is empty
+        if game_state.board.get((i, j)) != SudokuBoard.empty:
+            return False
+
+        # check horizontal line
         for idx in range(game_state.board.N):
-            val = game_state.board.get(square=(i, idx))
-            if val != game_state.board.empty:
-                vertical.add(val)
+            if game_state.board.get(square=(i, idx)) == value:
+                return False
 
-        horizontal = set()
+        # check vertical line
         for idx in range(game_state.board.N):
-            val = game_state.board.get(square=(idx, j))
-            if val != game_state.board.empty:
-                horizontal.add(val)
+            if game_state.board.get(square=(idx, j)) == value:
+                return False
 
-        region = set()
+        # check region
         region_i = i // game_state.board.m
         region_j = j // game_state.board.n
+
         for i_in in range(game_state.board.m):
             for j_in in range(game_state.board.n):
                 ind_i = (region_i * game_state.board.m) + i_in
                 ind_j = (region_j * game_state.board.n) + j_in
-                val = game_state.board.get(square=(ind_i, ind_j))
-                if val != game_state.board.empty:
-                    region.add(val)
 
-        options = set(range(1, game_state.board.N + 1)).difference(vertical, horizontal, region, taboo_moves)
+                if game_state.board.get(square=(ind_i, ind_j)) == value:
+                    return False
 
-        return next(iter(options)) if len(options) > 0 else None
-
+        return True
+    
     @staticmethod
     def evaluate_game(game_state: GameState) -> int:
         """
         Compute the score of the game (basically `player_1_score` - `player_2_score`)
         """
         return game_state.scores[0] - game_state.scores[1]
+    
 
     @staticmethod
-    def calculate_score(game_state: GameState, move: Move) -> int:
-        """Calculate the score of a single move in the current state of the game"""
+    def calculate_score(i: int, j: int, value: int, game_state: GameState):
+        """Calculate the score of a move"""
+        # Put the move on the board
+        game_state.board.put((i, j), value)
+
+        N = game_state.board.N
+        n = game_state.board.n      # Number of rows
+        m = game_state.board.m      # Number of columns
         reg_completed = 0
 
-        # check column
+        # Check the move completes a column
         full_col = True
-        for k in range(game_state.board.N):
-            if game_state.board.get((k, move.square[1])) == SudokuBoard.empty:
+        for k in range(N):
+            if game_state.board.get((k, j)) == SudokuBoard.empty:
                 full_col = False
         if full_col:
             reg_completed += 1
 
-        # check row
+        # Check the move completes a row
         full_row = True
-        for l in range(game_state.board.N):
-            if game_state.board.get((move.square[0], l)) == SudokuBoard.empty:
+        for l in range(N):
+            if game_state.board.get((i, l)) == SudokuBoard.empty:
                 full_row = False
         if full_row:
             reg_completed += 1
 
-        # check block
+        # Check the move completes a rectangle
         full_rectangle = True
-        i_left_top = move.square[0] - (move.square[0] % game_state.board.n)
-        j_left_top = move.square[1] - (move.square[1] % game_state.board.m)
-
-        for k in range(game_state.board.n):
-            for l in range(game_state.board.m):
+        # Get coordinates for the left upper corner in the n by m rectangle where (i,j) is located
+        i_left_top = i - (i % n)
+        j_left_top = j - (j % m)
+        for k in range(n):
+            for l in range(m):
                 if game_state.board.get((i_left_top + k, j_left_top + l)) == SudokuBoard.empty:
                     full_rectangle = False
         if full_rectangle:
             reg_completed += 1
-
+        
         scores = [0, 1, 3, 7]
+
         return scores[reg_completed]
 
     @staticmethod
-    def minimax(game_state: GameState, alpha: int = -100, beta: int = 100, depth: int = 5):
+    def minimax(game_state: GameState, alpha: int = -100000, beta: float = 100000, depth: int = 3):
         """
         Minimax tree search for the current game state up to a given `depth`.
         This method also implements alpha/beta pruning for the search optimization.
@@ -107,11 +119,12 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             player_squares = [(i, j) for i in range(game_state.board.N) for j in range(game_state.board.N)]
 
         # Apply additional filtering of possible moves (e.g. check possible values, taboo, cell emptiness)
-        possible_moves = list()
-        for i, j in player_squares:
-            val = SudokuAI.get_possible_value(game_state, i, j)
-            if val is not None:
-                possible_moves.append(Move(square=(i, j), value=val))
+        possible_moves = [
+            Move((i, j), value)
+            for i, j in player_squares
+            for value in range(1, game_state.board.N + 1)
+            if SudokuAI.possible(game_state, i, j, value)
+        ]
 
         # terminate recursion if there are no possible moves
         if len(possible_moves) == 0:
@@ -120,22 +133,19 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         # recursive step
         if game_state.current_player == 1:
             # maximizing case
-            value = float("-inf")
+            value_minimax = float("-inf")
             best_move = None
 
             for move in possible_moves:
-                # put new value, add square to occupied squares, change scores, change player
+                # put new value, change player, add square to occupied squares
+                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.board.put(move.square, move.value)
                 game_state.occupied_squares1.append(move.square)
-                move_score = SudokuAI.calculate_score(game_state, move)
                 game_state.scores[game_state.current_player - 1] += move_score
                 game_state.current_player = 2
 
                 # recurse with a new game state
-                next_value, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
-
-                # DEBUG
-                # print(f"move = {move}, depth = {depth}, value = {next_value}, init scores = {game_state.scores}")
+                next_value_minimax, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
 
                 # undo the move in the game (avoiding copying game state)
                 game_state.board.put(move.square, game_state.board.empty)
@@ -144,33 +154,36 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 game_state.scores[game_state.current_player - 1] -= move_score
 
                 # update best value and best move if needed
-                if next_value > value:
-                    value = next_value
+                if next_value_minimax > value_minimax:
+                    value_minimax = next_value_minimax
                     best_move = move
+                    best_moves = []
+                    best_moves.append(best_move)
+
+                if next_value_minimax == value_minimax:
+                    best_moves.append(move)
+                    best_move = random.choice(best_moves)
 
                 # alpha/beta pruning logic
-                if value >= beta:
+                if value_minimax >= beta:
                     break
-                alpha = max(alpha, value)
+                alpha = max(alpha, value_minimax)
 
-        else:
+        elif game_state.current_player == 2:
             # minimizing case
-            value = float("inf")
+            value_minimax = float("inf")
             best_move = None
 
             for move in possible_moves:
-                # put new value, add square to occupied squares, change scores, change player
+                # put new value, change player, add square to occupied squares
+                move_score = SudokuAI.calculate_score(move.square[0], move.square[1], move.value, game_state)
                 game_state.board.put(move.square, move.value)
                 game_state.occupied_squares2.append(move.square)
-                move_score = SudokuAI.calculate_score(game_state, move)
                 game_state.scores[game_state.current_player - 1] += move_score
                 game_state.current_player = 1
 
                 # recurse with a new game state
-                next_value, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
-
-                # DEBUG
-                # print(f"move = {move}, depth = {depth}, value = {next_value}, init scores = {game_state.scores}")
+                next_value_minimax, _ = SudokuAI.minimax(game_state=game_state, alpha=alpha, beta=beta, depth=depth - 1)
 
                 # undo the move in the game (avoiding copying game state)
                 game_state.board.put(move.square, game_state.board.empty)
@@ -179,21 +192,42 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 game_state.scores[game_state.current_player - 1] -= move_score
 
                 # update best value and best move if needed
-                if next_value < value:
-                    value = next_value
+                if next_value_minimax < value_minimax:
+                    value_minimax = next_value_minimax
                     best_move = move
+                    best_moves = []
+                    best_moves.append(best_move)
+
+                if next_value_minimax == value_minimax:
+                    best_moves.append(move)
+                    best_move = random.choice(best_moves)
 
                 # alpha/beta pruning logic
-                if value <= alpha:
+                if value_minimax <= alpha:
                     break
-                beta = min(beta, value)
+                beta = min(beta, value_minimax)
 
-        return value, best_move
+        return value_minimax, best_move
+
 
     def compute_best_move(self, game_state: GameState) -> None:
-        for depth in range(1, game_state.board.N ** 2):
-            val, move = self.minimax(game_state, depth=depth)
-            # print("*" * 100)
-            # print(f"Selected MINIMAX move - {move} with score - {val}")
-            # print("*" * 100)
-            self.propose_move(move)
+        # initialize first move with a random move
+        player_squares = game_state.player_squares()
+        if player_squares is None:
+            player_squares = [(i, j) for i in range(game_state.board.N) for j in range(game_state.board.N)]
+        possible_moves = [
+            Move((i, j), value)
+            for i, j in player_squares
+            for value in range(1, game_state.board.N + 1)
+            if SudokuAI.possible(game_state, i, j, value)
+        ]
+        move = random.choice(possible_moves)
+        self.propose_move(move)
+
+        # iterative deepening: choose N**2+1 to be sure to loop over every depth
+        N = game_state.board.N
+        for i in range(N**2 + 1):
+            _, move = SudokuAI.minimax(game_state, depth=i)
+            if move is not None:
+                self.propose_move(move)
+
