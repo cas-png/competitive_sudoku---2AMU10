@@ -46,78 +46,92 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def compute_possible_regions(game_state: GameState) -> Tuple[int, int]:
-        p1_horizontal = 0
-        p2_horizontal = 0
+        init_player = game_state.current_player
+
+        game_state.current_player = 1
+        p1_possible = game_state.player_squares()
+
+        game_state.current_player = 2
+        p2_possible = game_state.player_squares()
+
+        game_state.current_player = init_player
+
+        p1_total = 0
+        p2_total = 0
 
         for i in range(game_state.board.N):
             p1_count = 0
             p2_count = 0
+            missing = 0
             for j in range(game_state.board.N):
-                if (i, j) in game_state.occupied_squares1 or game_state.board.get(
-                    square=(i, j)
-                ) == game_state.board.empty:
-                    p1_count += 1
-                if (i, j) in game_state.occupied_squares2 or game_state.board.get(
-                    square=(i, j)
-                ) == game_state.board.empty:
-                    p2_count += 1
+                if game_state.board.get(square=(i, j)) == game_state.board.empty:
+                    missing += 1
+                    if (i, j) in p1_possible:
+                        p1_count += 1
+                    if (i, j) in p2_possible:
+                        p2_count += 1
 
-            if p1_count == game_state.board.N:
-                p1_horizontal += 1
+            # if p1_count == missing:
+            #     p1_total += 1
+            # if p2_count == missing:
+            #     p2_total += 1
 
-            if p2_count == game_state.board.N:
-                p2_horizontal += 1
+            if missing == 0:
+                continue
 
-        p1_vertical = 0
-        p2_vertical = 0
+            p1_total += (p1_count / missing) ** 2
+            p2_total += (p2_count / missing) ** 2
 
         for i in range(game_state.board.N):
             p1_count = 0
             p2_count = 0
+            missing = 0
             for j in range(game_state.board.N):
-                if (j, i) in game_state.occupied_squares1 or game_state.board.get(
-                    square=(j, i)
-                ) == game_state.board.empty:
-                    p1_count += 1
-                if (j, i) in game_state.occupied_squares2 or game_state.board.get(
-                    square=(j, i)
-                ) == game_state.board.empty:
-                    p2_count += 1
+                if game_state.board.get(square=(j, i)) == game_state.board.empty:
+                    missing += 1
+                    if (j, i) in p1_possible:
+                        p1_count += 1
+                    if (j, i) in p2_possible:
+                        p2_count += 1
 
-            if p1_count == game_state.board.N:
-                p1_vertical += 1
+            # if p1_count == missing:
+            #     p1_total += 1
+            # if p2_count == missing:
+            #     p2_total += 1
 
-            if p2_count == game_state.board.N:
-                p2_vertical += 1
+            if missing == 0:
+                continue
 
-        p1_blocks = 0
-        p2_blocks = 0
+            p1_total += (p1_count / missing) ** 2
+            p2_total += (p2_count / missing) ** 2
 
         for reg_i in range(game_state.board.N // game_state.board.m):
             for reg_j in range(game_state.board.N // game_state.board.n):
                 p1_count = 0
                 p2_count = 0
+                missing = 0
                 for i in range(game_state.board.m):
                     for j in range(game_state.board.n):
                         cell = (game_state.board.m * reg_i + i, game_state.board.n * reg_j + j)
-                        if (
-                            cell in game_state.occupied_squares1
-                            or game_state.board.get(square=cell) == game_state.board.empty
-                        ):
-                            p1_count += 1
-                        if (
-                            cell in game_state.occupied_squares2
-                            or game_state.board.get(square=cell) == game_state.board.empty
-                        ):
-                            p2_count += 1
+                        if game_state.board.get(square=cell) == game_state.board.empty:
+                            missing += 1
+                            if cell in p1_possible:
+                                p1_count += 1
+                            if cell in p2_possible:
+                                p2_count += 1
 
-                if p1_count == game_state.board.N:
-                    p1_vertical += 1
+                # if p1_count == missing:
+                #     p1_total += 1
+                # if p2_count == missing:
+                #     p2_total += 1
 
-                if p2_count == game_state.board.N:
-                    p2_vertical += 1
+                if missing == 0:
+                    continue
 
-        return p1_horizontal + p1_vertical + p1_blocks, p2_horizontal + p2_vertical + p2_blocks
+                p1_total += (p1_count / missing) ** 2
+                p2_total += (p2_count / missing) ** 2
+
+        return p1_total, p2_total
 
     @staticmethod
     def compute_avg_depths(game_state: GameState) -> Tuple[float, float]:
@@ -133,11 +147,11 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         """Compute the heuristic value for the score of the game"""
 
         # Score difference
-        weight = 3.0
+        weight = 1.0
         score_difference = weight * (game_state.scores[0] - game_state.scores[1])
 
         # Compute difference in number of regions each player can possibly complete
-        weight = 0.5
+        weight = 1.0
         player1_possible, player2_possible = SudokuAI.compute_possible_regions(game_state)
         possible_regions_difference = weight * (player1_possible - player2_possible)
 
