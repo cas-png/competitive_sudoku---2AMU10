@@ -238,15 +238,15 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         # Apply additional filtering of possible moves (e.g. check possible values, taboo, cell emptiness, ...)
         possible_moves = list()
-        neighborhood = SudokuAI.get_playing_region(game_state)
-        for i, j in player_squares:
-            if (i, j) in neighborhood:
-                val = SudokuAI.get_possible_value(game_state, i, j)
-                if val is not None:
-                    possible_moves.append(Move(square=(i, j), value=val))
 
-        if len(possible_moves) == 0:
-            possible_moves = player_squares
+        intersecting = SudokuAI.get_playing_region(game_state).intersection(set(player_squares))
+        if len(intersecting) == 0:
+            intersecting = player_squares
+
+        for (i, j) in intersecting:
+            val = SudokuAI.get_possible_value(game_state, i, j)
+            if val is not None:
+                possible_moves.append(Move(square=(i, j), value=val))
 
         # terminate recursion if there are no possible moves
         if len(possible_moves) == 0:
