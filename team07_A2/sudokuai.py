@@ -151,7 +151,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         score_difference = weight * (game_state.scores[0] - game_state.scores[1])
 
         # Compute difference in number of regions each player can possibly complete
-        weight = 1.0
+        weight = 3.0
         player1_possible, player2_possible = SudokuAI.compute_possible_regions(game_state)
         possible_regions_difference = weight * (player1_possible - player2_possible)
 
