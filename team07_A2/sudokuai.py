@@ -240,10 +240,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         possible_moves = list()
         neighborhood = SudokuAI.get_playing_region(game_state)
         for i, j in player_squares:
-            if (i, j) in neighborhood or (len(neighborhood) == 0):
+            if (i, j) in neighborhood:
                 val = SudokuAI.get_possible_value(game_state, i, j)
                 if val is not None:
                     possible_moves.append(Move(square=(i, j), value=val))
+
+        if len(possible_moves) == 0:
+            possible_moves = player_squares
 
         # terminate recursion if there are no possible moves
         if len(possible_moves) == 0:
