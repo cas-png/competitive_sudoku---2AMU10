@@ -327,7 +327,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         return value, best_move
 
     def compute_best_move(self, game_state: GameState) -> None:
-        for depth in range(2, game_state.board.N**2):
+        for depth in range(1, game_state.board.N**2):
             val, move = self.minimax(game_state, depth=depth)
             print("*" * 100)
             print(f"Selected MINIMAX move - {move} with score - {val} | depth - {depth}")
