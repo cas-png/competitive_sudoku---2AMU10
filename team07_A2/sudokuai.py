@@ -1,7 +1,9 @@
-from typing import Optional, Set, Tuple
-
+from typing import List, Optional, Set, Tuple
+import random
 import competitive_sudoku.sudokuai
 from competitive_sudoku.sudoku import GameState, Move, SudokuBoard
+
+METHOD = None  # or "sampling", or "neighborhood"
 
 
 class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
@@ -14,7 +16,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def get_possible_value(game_state: GameState, i: int, j: int) -> Optional[int]:
-        """Returns possible value for the position (i, j) of the game and None if it does not exist."""
+        """Returns possible value for the position (i, j) of the game and `None` if it does not exist."""
         taboo_moves = {v.value for v in game_state.taboo_moves if v.square == (i, j)}
 
         vertical = set()
@@ -46,6 +48,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def compute_possible_regions(game_state: GameState) -> Tuple[int, int]:
+        """
+        Returns the number of regions in which each square is available
+        for a player in the current `game_state` for both players.
+        """
         init_player = game_state.current_player
 
         game_state.current_player = 1
@@ -71,11 +77,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     if (i, j) in p2_possible:
                         p2_count += 1
 
-            # if p1_count == missing:
-            #     p1_total += 1
-            # if p2_count == missing:
-            #     p2_total += 1
-
             if missing == 0:
                 continue
 
@@ -94,11 +95,6 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                     if (j, i) in p2_possible:
                         p2_count += 1
 
-            # if p1_count == missing:
-            #     p1_total += 1
-            # if p2_count == missing:
-            #     p2_total += 1
-
             if missing == 0:
                 continue
 
@@ -112,18 +108,13 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
                 missing = 0
                 for i in range(game_state.board.m):
                     for j in range(game_state.board.n):
-                        cell = (game_state.board.m * reg_i + i, game_state.board.n * reg_j + j)
-                        if game_state.board.get(square=cell) == game_state.board.empty:
+                        square = (game_state.board.m * reg_i + i, game_state.board.n * reg_j + j)
+                        if game_state.board.get(square=square) == game_state.board.empty:
                             missing += 1
-                            if cell in p1_possible:
+                            if square in p1_possible:
                                 p1_count += 1
-                            if cell in p2_possible:
+                            if square in p2_possible:
                                 p2_count += 1
-
-                # if p1_count == missing:
-                #     p1_total += 1
-                # if p2_count == missing:
-                #     p2_total += 1
 
                 if missing == 0:
                     continue
@@ -135,7 +126,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def compute_avg_depths(game_state: GameState) -> Tuple[float, float]:
-        """Compute the average depth of moves for each player"""
+        """Compute the average depth of all occupied squares for each player"""
         if game_state.occupied_squares1 and game_state.occupied_squares2:
             p1_avg = sum(t[0] for t in game_state.occupied_squares1) / len(game_state.occupied_squares1)
             p2_avg = sum(t[0] for t in game_state.occupied_squares2) / len(game_state.occupied_squares2)
@@ -144,8 +135,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def evaluate_game(game_state: GameState) -> float:
-        """Compute the heuristic value for the score of the game"""
-
+        """Returns the heuristic value for the score of the game."""
         # Score difference
         weight = 1.0
         score_difference = weight * (game_state.scores[0] - game_state.scores[1])
@@ -164,7 +154,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     @staticmethod
     def calculate_score(game_state: GameState, move: Move) -> int:
-        """Calculate the score of a single move in the current state of the game"""
+        """Returns the score of a single move in the current state of the game."""
         reg_completed = 0
 
         # check column
@@ -199,6 +189,33 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
         return scores[reg_completed]
 
     @staticmethod
+    def sample_moves(moves: List[Move], ratio: float = 0.5) -> List[Move]:
+        """Returns a sample of elements from the input list of moves given a specific ratio."""
+        sample_size = 1 if len(moves) == 1 else int(len(moves) * ratio)
+        return random.sample(moves, sample_size)
+
+    @staticmethod
+    def neighbors(square: Tuple[int, int], N: int) -> Set[Tuple[int, int]]:
+        """Returns neighbors of a square (including the square itself)"""
+        nbh = set()
+        row, col = square
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                r, c = row + dr, col + dc
+                if 0 <= r < N and 0 <= c < N:
+                    nbh.add((r, c))
+
+        return nbh
+
+    @staticmethod
+    def get_playing_region(game_state: GameState) -> Set[Tuple[int, int]]:
+        """Returns neighbors of all occupied squares by both players."""
+        full_nbh = set()
+        for move in game_state.occupied_squares1 + game_state.occupied_squares2:
+            full_nbh.update(SudokuAI.neighbors(move, game_state.board.N))
+        return full_nbh
+
+    @staticmethod
     def minimax(game_state: GameState, alpha: int = -100, beta: int = 100, depth: int = 5):
         """
         Minimax tree search for the current game state up to a given `depth`.
@@ -216,6 +233,10 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             player_squares = [(i, j) for i in range(game_state.board.N) for j in range(game_state.board.N)]
 
         # Apply additional filtering of possible moves (e.g. check possible values, taboo, cell emptiness)
+        if METHOD == "neighborhood":
+            intersecting = SudokuAI.get_playing_region(game_state).intersection(set(player_squares))
+            player_squares = intersecting if len(intersecting) > 0 else player_squares
+
         possible_moves = list()
         for i, j in player_squares:
             val = SudokuAI.get_possible_value(game_state, i, j)
@@ -231,6 +252,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             # maximizing case
             value = float("-inf")
             best_move = None
+
+            if METHOD == "sampling":
+                possible_moves = SudokuAI.sample_moves(possible_moves, ratio=0.5)
 
             for move in possible_moves:
                 # put new value, add square to occupied squares, change scores, change player
@@ -267,6 +291,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             value = float("inf")
             best_move = None
 
+            if METHOD == "sampling":
+                possible_moves = SudokuAI.sample_moves(possible_moves, ratio=0.5)
+
             for move in possible_moves:
                 # put new value, add square to occupied squares, change scores, change player
                 game_state.board.put(move.square, move.value)
@@ -302,7 +329,7 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
     def compute_best_move(self, game_state: GameState) -> None:
         for depth in range(2, game_state.board.N**2):
             val, move = self.minimax(game_state, depth=depth)
-            # print("*" * 100)
-            # print(f"Selected MINIMAX move - {move} with score - {val} | depth - {depth}")
-            # print("*" * 100)
+            print("*" * 100)
+            print(f"Selected MINIMAX move - {move} with score - {val} | depth - {depth}")
+            print("*" * 100)
             self.propose_move(move)
