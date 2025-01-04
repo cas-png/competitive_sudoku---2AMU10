@@ -220,7 +220,9 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
         for _ in range(1000000):
             leaf = self.select_leaf(root)
-            leaf.expand_tree()
+            if leaf.visits > 0:
+                leaf.expand_tree()
+                leaf = self.select_leaf(leaf)
             winner_random_playout = leaf.random_playout()
             value = 1
             if winner_random_playout == 0: # Draw
