@@ -15,6 +15,9 @@ class MCTSNode:
         self.move = move
         self.parent = parent
         self.visits = 0
+        self.s_A = 0
+        self.s_B = 0
+        self.s_draw = 0
         self.signed_score = 0
         self.children = list()
 
@@ -191,17 +194,27 @@ class MCTSNode:
         
         return MCTSNode.check_winner(state)
     
-    def backpropagate(self, value, player_winner):
-        """Backpropagate trough the tree.
+    def backpropagate(self, outcome, player_winner):
+        """Backpropagate trough the tree. 
+        Outcome is a string, which determines if 'A' wins, 'B' wins or a draw.
+        Player_winner is 1 if player 1 wins, 2 if player 2 wins, and 0 if there is a draw
         """
         self.visits += 1
-        mult_fac = 1
-        if self.game_state.current_player != player_winner:
-            mult_fac = -1
-        self.signed_score += mult_fac * value
 
+        if outcome == 'Draw':
+            self.s_draw += 1
+        elif outcome == 'A':
+            self.s_A += 1
+        else:
+            self.s_B += 1
+        
+        if self.game_state.current_player == player_winner: # Player A is allowed to move in this node
+            self.signed_score = -self.s_A
+        else: # Player A is allowed to move in this node
+            self.signed_score = self.s_A
+        
         if self.parent != None:
-            self.parent.backpropagate(value, player_winner)
+            self.parent.backpropagate(outcome, player_winner)
 
 
 
@@ -216,6 +229,8 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
 
     def compute_best_move(self, game_state: GameState) -> None:
         root = MCTSNode(game_state)
+        player_A = game_state.current_player # Assume that player A is allowed to put a move in the root
+
         root.expand_tree()
 
         for _ in range(1000000):
@@ -223,11 +238,15 @@ class SudokuAI(competitive_sudoku.sudokuai.SudokuAI):
             if leaf.visits > 0:
                 leaf.expand_tree()
                 leaf = self.select_leaf(leaf)
-            winner_random_playout = leaf.random_playout()
-            value = 1
+            winner_random_playout = leaf.random_playout()  # Either 0, 1 or 2
             if winner_random_playout == 0: # Draw
-                value = 0
-            leaf.backpropagate(value, winner_random_playout)
+                outcome_random_playout = 'Draw'
+            elif winner_random_playout == player_A: # Player A wins
+                outcome_random_playout = 'A'
+            else: # Player B wins
+                outcome_random_playout = 'B'
+
+            leaf.backpropagate(outcome_random_playout, winner_random_playout)
 
             # Robust child
             robust_node = root.children[0]
